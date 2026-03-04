@@ -121,6 +121,11 @@ jobs:
           path: ndctl
           fetch-depth: 1
 
+      - name: capture ndctl commit
+        id: ndctl_sha
+        run: |
+          echo "sha=$(git -C ndctl rev-parse HEAD)" >> "$GITHUB_OUTPUT"
+
       - name: checkout kernel
         uses: actions/checkout@v4
         with:
@@ -163,6 +168,11 @@ jobs:
             ${{ env.RUNNER_OS_LABEL }}_${{ env.ARCH_LABEL }}_${{ env.KERNEL_REPO }}_${{ env.KERNEL_BRANCH }}
             ${{ env.RUNNER_OS_LABEL }}_${{ env.ARCH_LABEL }}
 
+      - name: qbuild cache status
+        run: |
+          echo "qbuild cache-hit: ${{ steps.qbuild_cache.outputs.cache-hit }}"
+          ls -lah kernel/qbuild || true
+
       - name: defconfig
         working-directory: ${{ github.workspace }}/kernel
         run: |
@@ -181,10 +191,6 @@ jobs:
           ccache --show-stats
           cd kernel
           PATH=/usr/lib/ccache:"$PATH" make -j $(nproc)
-
-      - name: clean qbuild
-        run: |
-          rm -rf kernel/qbuild
 
       - name: run_qemu.sh
         run: |
@@ -214,6 +220,19 @@ jobs:
           ) 2>&1 | tee -a /tmp/rq_0.log
 
           exit ${PIPESTATUS[0]}
+
+      - name: inspect qbuild layout
+        if: ${{ always() }}
+        run: |
+          echo "=== kernel/qbuild directories ==="
+          find kernel/qbuild -maxdepth 3 -type d -print || true
+          echo
+          echo "=== kernel/qbuild listing ==="
+          ls -la kernel/qbuild || true
+          echo
+          echo "=== mkosi.cache listing ==="
+          ls -la kernel/qbuild/mkosi.cache || true
+
 
       - name: check if qemu died early
         if: ${{ always() }}
@@ -253,7 +272,7 @@ jobs:
             echo "## Inputs"
             echo "- Kernel: ${KERNEL_REPO} @ ${KERNEL_BRANCH}"
             echo "- ndctl:   ${NDCTL_REPO} @ ${NDCTL_BRANCH}"
-            echo "- Runner:  ubuntu-24.04"
+            echo "- Runner:  ${RUNNER_OS_LABEL}"
             echo "- mkosi:   ${MKOSI_DISTRO} ${MKOSI_RELEASE}"
             echo "- timeout: ${RUN_TIMEOUT_MIN} min"
             echo
@@ -271,14 +290,16 @@ jobs:
             fi
             echo
             echo "## Totals"
-            # Print from the first "Ok:" through "Full log written to ...", even with prefixes.
-            awk '
-              BEGIN {p=0}
-              /(^|[[:space:]])Ok:[[:space:]]/ {p=1}
-              p {print}
-              p && /Full log written to/ {exit}
-            ' "$CLEAN" | strip_prefix || true
-          } | tee /tmp/cxl-test-summary.md >> "$GITHUB_STEP_SUMMARY"
+            # Only the scoreboard lines; stop after the first "Full log written to ..." line.
+            grep -E '(^|[[:space:]])(Ok:|Expected Fail:|Fail:|Unexpected Pass:|Skipped:|Timeout:|Full log written to)[[:space:]]' "$CLEAN" | \
+              strip_prefix | \
+              awk '
+                {print}
+                /Full log written to/ {exit}
+              ' || true
+          } | tee /tmp/cxl-test-summary.md
+
+          cat /tmp/cxl-test-summary.md >> "$GITHUB_STEP_SUMMARY"
 
       - name: upload logs
         if: ${{ always() }}
