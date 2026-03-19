@@ -14,7 +14,6 @@ rootfssize="10G"
 espsize="512M"
 
 nvme_size="1G"
-efi_mem_size="2"   #in GiB
 legacy_pmem_size="2"   #in GiB
 pmem_size="16384"  #in MiB
 pmem_label_size=2  #in MiB
@@ -356,7 +355,6 @@ set_topology()
 		num_nodes=1
 		num_mems=0
 		num_pmems=0
-		num_efi_mems=0
 		num_legacy_pmems=0
 		;;
 	2S0|small0)
@@ -364,7 +362,6 @@ set_topology()
 		num_nodes=2
 		num_mems=0
 		num_pmems=2
-		num_efi_mems=0
 		num_legacy_pmems=0
 		;;
 	2S|small)
@@ -372,7 +369,6 @@ set_topology()
 		num_nodes=2
 		num_mems=2
 		num_pmems=2
-		num_efi_mems=1
 		num_legacy_pmems=1
 		;;
 	2S4|med*)
@@ -380,7 +376,6 @@ set_topology()
 		num_nodes=2
 		num_mems=4
 		num_pmems=4
-		num_efi_mems=1
 		num_legacy_pmems=2
 		;;
 	4S|large)
@@ -388,7 +383,6 @@ set_topology()
 		num_nodes=4
 		num_mems=4
 		num_pmems=4
-		num_efi_mems=2
 		num_legacy_pmems=2
 		;;
 	8S|huge)
@@ -396,7 +390,6 @@ set_topology()
 		num_nodes=8
 		num_mems=8
 		num_pmems=8
-		num_efi_mems=2
 		num_legacy_pmems=2
 		;;
 	16S|insane)
@@ -404,7 +397,6 @@ set_topology()
 		num_nodes=16
 		num_mems=0
 		num_pmems=16
-		num_efi_mems=2
 		num_legacy_pmems=2
 		;;
 	16Sb|broken)
@@ -412,7 +404,6 @@ set_topology()
 		num_nodes=16
 		num_mems=0
 		num_pmems=32
-		num_efi_mems=2
 		num_legacy_pmems=2
 		;;
 	gcp)
@@ -420,7 +411,6 @@ set_topology()
 		num_nodes=1
 		num_mems=0
 		num_pmems=0
-		num_efi_mems=0
 		num_legacy_pmems=0
 		;;
 	*)
@@ -441,9 +431,6 @@ set_topology()
 	fi
 	if [[ "$_arg_pmems" ]]; then
 		num_pmems="$_arg_pmems"
-	fi
-	if [[ "$_arg_efi_mems" ]]; then
-		num_efi_mems="$_arg_efi_mems"
 	fi
 	if [[ "$_arg_legacy_pmems" ]]; then
 		num_legacy_pmems="$_arg_legacy_pmems"
@@ -888,7 +875,6 @@ build_kernel_cmdline()
 		num_legacy_pmems=0
 		kcmd+=( 
 			"memmap=3G!6G,1G!9G"
-			"efi_fake_mem=2G@10G:0x40000"
 			"default_hugepagesz=1G hugepagesz=1G hugepages=2"
 		)
 	fi
@@ -917,20 +903,6 @@ build_kernel_cmdline()
 		pmems_str="$(printf "%s," "${legacy_pmems[@]}")"
 		pmems_str="${pmems_str%,}"
 		kcmd+=( "memmap=$pmems_str" )
-	fi
-
-	if (( num_efi_mems > 0 )); then
-		reserve="$((num_efi_mems * efi_mem_size))"  # in GiB
-		start="$((tot_mem - reserve))"  #in GiB
-		declare -a efi_mems
-		cur="$start"
-		for (( i = 0; i < num_efi_mems; i++ )); do
-			cur=$((cur + (i * efi_mem_size)))
-			efi_mems[$i]="${efi_mem_size}G@${cur}G:0x40000"
-		done
-		efi_mems_str="$(printf "%s," "${efi_mems[@]}")"
-		efi_mems_str="${efi_mems_str%,}"
-		kcmd+=( "efi_fake_mem=$efi_mems_str" )
 	fi
 
 	# process kcmd replacement

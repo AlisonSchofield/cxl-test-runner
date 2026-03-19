@@ -41,7 +41,7 @@ jobs:
       RUN_TIMEOUT_MIN: ${{ inputs.timeout_min }}
 
       # Pinned runner behavior (not user-configurable ATM)
-      RUN_OPTS: --nfit-test-run --ndctl-build
+      RUN_OPTS: --cxl-test --nfit-test-run --ndctl-build
 
       # Pinned image selection
       MKOSI_DISTRO: ubuntu
@@ -208,6 +208,9 @@ jobs:
         working-directory: ${{ github.workspace }}/kernel
         run: |
           make defconfig ARCH=x86_64
+
+# ALISON  merge both config
+          bash ./scripts/kconfig/merge_config.sh .config ../run_qemu/.github/workflows/cxl-test.cfg
           bash ./scripts/kconfig/merge_config.sh .config ../run_qemu/.github/workflows/nfit-test.cfg
           make olddefconfig ARCH=x86_64
 
