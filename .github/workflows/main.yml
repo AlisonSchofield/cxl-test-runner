@@ -235,17 +235,18 @@ jobs:
           echo "Arch:          $ARCH_LABEL"
           echo "mkosi image:   $MKOSI_DISTRO $MKOSI_RELEASE"
           echo "test suites:   $TEST_SUITE"
-          echo "selected:      ${{ steps.suiteplan.outputs.selected }}"
           echo "kernel config: ${{ steps.suiteplan.outputs.config_desc }}"
           echo "run_qemu opts: ${{ steps.suiteplan.outputs.run_opts }}"
           echo "timeout (min): $RUN_TIMEOUT_MIN"
 
-      - name: defconfig
+      - name: prepare kernel config
         working-directory: ${{ github.workspace }}/kernel
         shell: bash
         run: |
           set -euo pipefail
-          make defconfig ARCH=x86_64
+
+          test -f ../run_qemu/.github/workflows/tiny.cfg
+          cp ../run_qemu/.github/workflows/tiny.cfg .config
 
           raw=$(printf '%s ' "$TEST_SUITE" | tr ',' ' ')
           read -r -a requested <<<"$raw"
