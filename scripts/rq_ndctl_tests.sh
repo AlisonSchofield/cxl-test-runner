@@ -1,9 +1,11 @@
-#!/bin/bash -ex
+#!/bin/bash -e
 # SPDX-License-Identifier: CC0-1.0
 # Copyright (C) 2021 Intel Corporation. All rights reserved.
 
 : "${NDCTL:=/root/ndctl}"
 : "${RQ_NDCTL_TEST_CONF:=/etc/default/rq_ndctl_test.conf}"
+
+rc=0
 
 cleanup()
 {
@@ -58,25 +60,35 @@ if [[ -n "$NDCTL_TEST_MESON_ARGS" ]]; then
 	meson_cmd+=("${meson_extra_args[@]}")
 fi
 
-set +e
-"${meson_cmd[@]}" > "$logfile" 2>&1
-
-# /dev/kmsg has a 1024 bytes limit ("invalid write")
 dumpfile()
 {
 (
-	set +x
-	local filename; filename=$(basename "$1")
+	local filename
+	filename=$(basename "$1")
 	local filenamelen
 	filenamelen=$(printf '%s' "$filename" | wc -c)
-	local maxlen; maxlen=$((1024-filenamelen-6))
+	local maxlen
+	maxlen=$((1024-filenamelen-6))
 	while IFS= read -t 60 -n "$maxlen" -r line; do
 		printf '<5>%s: %s\n' "$filename" "$line" > /dev/kmsg
 	done < "$1"
 )
 }
 
-dumpfile "$NDCTL"/build/meson-logs/testlog.txt
-echo "======= meson-test.log ========" > /dev/kmsg
-dumpfile "$logfile"
-echo "======= Done $0 ========" > /dev/kmsg
+set +e
+echo "======= meson test start ========" > /dev/kmsg
+"${meson_cmd[@]}" > "$logfile" 2>&1
+rc=$?
+echo "======= meson test end rc=$rc ========" > /dev/kmsg
+set -e
+
+if [[ $rc -ne 0 ]]; then
+	echo "======= test failure logs ========" > /dev/kmsg
+	[[ -f "$NDCTL"/build/meson-logs/testlog.txt ]] && dumpfile "$NDCTL"/build/meson-logs/testlog.txt
+	[[ -f "$logfile" ]] && dumpfile "$logfile"
+else
+	rm -f "$logfile"
+fi
+
+echo "======= Done $0 rc=$rc ========" > /dev/kmsg
+exit $rc
