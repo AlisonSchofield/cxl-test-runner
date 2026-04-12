@@ -542,7 +542,7 @@ process_options_logic()
 		_rq_test_meson_args=""
 
 		if (( have_cxl )); then
-			_arg_cxl_debug="on"
+			# _arg_cxl_debug="on"
 			_arg_cxl_test="on"
 			_rq_test_name+=" CXL"
 			_rq_test_meson_args+=" --suite=ndctl:cxl"
