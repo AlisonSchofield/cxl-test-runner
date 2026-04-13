@@ -6,7 +6,7 @@ logfile="$1"
 
 find_lines_re=(
 	"auto-running .*rq_ndctl_tests.sh"
-	"[0-9]+/[0-9]+ ndctl:.*OK.*"
+	"[0-9]+/[0-9]+.*OK"
 	"Ok:[ \\t]+[0-9]+"
 	"Fail:[ \\t]+0"
 	"Done .*rq_ndctl_tests.sh"
@@ -26,7 +26,7 @@ raw_command_re=(
 error_lines_re=(
 	"make:.*\\[Makefile:.*check] Error"
 	"ninja: build stopped: subcommand failed"
-	"[0-9]+/[0-9]+ ndctl:.*FAIL.*"
+	"[0-9]+/[0-9]+.*FAIL"
 	'Fail:[[:blank:]]+[^0[:blank:]]'
 	'Unexpected Pass:[[:blank:]]+[^0[:blank:]]'
 	'Skipped:[[:blank:]]+[^0[:blank:]]'
