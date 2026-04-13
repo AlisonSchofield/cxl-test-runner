@@ -296,7 +296,7 @@ jobs:
             sudo sysctl -w kernel.apparmor_restrict_unprivileged_userns=0
           fi
 
-      - name: run_qemu.sh
+      - name: run_qemu_ci.sh
         run: |
           set -x
 
@@ -317,7 +317,7 @@ jobs:
             PATH=/usr/lib/ccache:"$PATH" \
             distro=${MKOSI_DISTRO} rev=${MKOSI_RELEASE} \
             ndctl='${{ github.workspace }}/ndctl' \
-            ../run_qemu/run_qemu.sh ${{ steps.suiteplan.outputs.run_opts }} \
+            ../run_qemu/run_qemu_ci.sh ${{ steps.suiteplan.outputs.run_opts }} \
               --rebuild=kmod \
               --no-kvm \
               --timeout=${RUN_TIMEOUT_MIN} \

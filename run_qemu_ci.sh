@@ -202,7 +202,7 @@ fi
 
 if [ ${_arg_working_dir:0:1} == "-" ]; then
 	printf "Invalid option '%s'\n" "$_arg_working_dir"
-	printf "Try 'run_qemu.sh --help' for more information.\n"
+	printf "Try 'run_qemu_ci.sh --help' for more information.\n"
 	exit 1
 fi
 
@@ -1345,7 +1345,7 @@ postinst_append_if_not_found()
 	local _outputf=mkosi.postinst
 	# Until mkosi v18 (commit a28c268996fa),  only one postinst script is
 	# supported. So, we concatenate. One drawback:  you must manually delete
-	# qbuild/mkosi.postinst when changing run_qemu.sh
+	# qbuild/mkosi.postinst when changing run_qemu_ci.sh
 	if test -e "$_outputf" && grep -q -e "$watermark" "$_outputf"; then
 		cat >/dev/null
 		return
