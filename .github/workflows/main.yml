@@ -245,8 +245,7 @@ jobs:
         run: |
           set -euo pipefail
 
-          test -f ../run_qemu/.github/workflows/tiny.cfg
-          cp ../run_qemu/.github/workflows/tiny.cfg .config
+          make defconfig ARCH=x86_64
 
           raw=$(printf '%s ' "$TEST_SUITE" | tr ',' ' ')
           read -r -a requested <<<"$raw"
@@ -278,7 +277,7 @@ jobs:
             esac
           done
 
-          cfgs=()
+          cfgs=(../run_qemu/.github/workflows/ci-base.cfg)
           if (( have_cxl || have_dax )); then
             cfgs+=(../run_qemu/.github/workflows/cxl-test.cfg)
           fi
