@@ -1,0 +1,127 @@
+---
+name: NVDIMM/DAX Nightly
+
+# yamllint disable-line rule:truthy
+on:
+  schedule:
+    - cron: '0 6 * * *'  # 10 pm PST (UTC-8)
+  workflow_dispatch:
+
+run-name: "NVDIMM/DAX nightly (${{ github.event_name }})"
+
+jobs:
+  # ── nvdimm/nvdimm.git @ libnvdimm-for-next ──────────────────────────────
+
+  check-for-next:
+    runs-on: ubuntu-latest
+    outputs:
+      changed: ${{ steps.changed.outputs.value }}
+      sha:     ${{ steps.sha.outputs.value }}
+    steps:
+      - name: fetch kernel HEAD
+        id: sha
+        run: |
+          sha=$(git ls-remote \
+            https://git.kernel.org/pub/scm/linux/kernel/git/nvdimm/nvdimm.git \
+            refs/heads/libnvdimm-for-next | awk '{print $1}')
+          echo "value=$sha" >> "$GITHUB_OUTPUT"
+
+      - name: check if already tested
+        id: cache
+        uses: actions/cache/restore@v4
+        with:
+          path: /tmp/.ndctl-tested
+          key: tested-nvdimm-for-next-${{ steps.sha.outputs.value }}
+          lookup-only: true
+
+      - name: set changed output
+        id: changed
+        run: |
+          if [[ "${{ steps.cache.outputs.cache-hit }}" == "true" ]]; then
+            echo "value=false" >> "$GITHUB_OUTPUT"
+            echo "nvdimm/for-next unchanged (SHA: ${{ steps.sha.outputs.value }}) — skipping"
+          else
+            echo "value=true" >> "$GITHUB_OUTPUT"
+            echo "nvdimm/for-next new SHA: ${{ steps.sha.outputs.value }} — running"
+          fi
+
+  test-for-next:
+    needs: check-for-next
+    if: needs.check-for-next.outputs.changed == 'true'
+    uses: ./.github/workflows/main.yml
+    with:
+      kernel_repo:   "https://git.kernel.org/pub/scm/linux/kernel/git/nvdimm/nvdimm.git"
+      kernel_branch: "libnvdimm-for-next"
+      ndctl_repo:    "pmem/ndctl"
+      ndctl_branch:  "pending"
+      test_suite:    "nvdimm dax"
+      timeout_min:   "35"
+
+  mark-for-next:
+    needs: [check-for-next, test-for-next]
+    if: needs.test-for-next.result == 'success'
+    runs-on: ubuntu-latest
+    steps:
+      - run: echo "${{ needs.check-for-next.outputs.sha }}" > /tmp/.ndctl-tested
+      - uses: actions/cache/save@v4
+        with:
+          path: /tmp/.ndctl-tested
+          key: tested-nvdimm-for-next-${{ needs.check-for-next.outputs.sha }}
+
+  # ── nvdimm/nvdimm.git @ libnvdimm-fixes ─────────────────────────────────
+
+  check-fixes:
+    runs-on: ubuntu-latest
+    outputs:
+      changed: ${{ steps.changed.outputs.value }}
+      sha:     ${{ steps.sha.outputs.value }}
+    steps:
+      - name: fetch kernel HEAD
+        id: sha
+        run: |
+          sha=$(git ls-remote \
+            https://git.kernel.org/pub/scm/linux/kernel/git/nvdimm/nvdimm.git \
+            refs/heads/libnvdimm-fixes | awk '{print $1}')
+          echo "value=$sha" >> "$GITHUB_OUTPUT"
+
+      - name: check if already tested
+        id: cache
+        uses: actions/cache/restore@v4
+        with:
+          path: /tmp/.ndctl-tested
+          key: tested-nvdimm-fixes-${{ steps.sha.outputs.value }}
+          lookup-only: true
+
+      - name: set changed output
+        id: changed
+        run: |
+          if [[ "${{ steps.cache.outputs.cache-hit }}" == "true" ]]; then
+            echo "value=false" >> "$GITHUB_OUTPUT"
+            echo "nvdimm/fixes unchanged (SHA: ${{ steps.sha.outputs.value }}) — skipping"
+          else
+            echo "value=true" >> "$GITHUB_OUTPUT"
+            echo "nvdimm/fixes new SHA: ${{ steps.sha.outputs.value }} — running"
+          fi
+
+  test-fixes:
+    needs: check-fixes
+    if: needs.check-fixes.outputs.changed == 'true'
+    uses: ./.github/workflows/main.yml
+    with:
+      kernel_repo:   "https://git.kernel.org/pub/scm/linux/kernel/git/nvdimm/nvdimm.git"
+      kernel_branch: "libnvdimm-fixes"
+      ndctl_repo:    "pmem/ndctl"
+      ndctl_branch:  "pending"
+      test_suite:    "nvdimm dax"
+      timeout_min:   "35"
+
+  mark-fixes:
+    needs: [check-fixes, test-fixes]
+    if: needs.test-fixes.result == 'success'
+    runs-on: ubuntu-latest
+    steps:
+      - run: echo "${{ needs.check-fixes.outputs.sha }}" > /tmp/.ndctl-tested
+      - uses: actions/cache/save@v4
+        with:
+          path: /tmp/.ndctl-tested
+          key: tested-nvdimm-fixes-${{ needs.check-fixes.outputs.sha }}

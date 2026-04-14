@@ -7,30 +7,42 @@ on:
     inputs:
       kernel_repo:
         description: "Kernel repo: owner/name OR full git URL"
-        required: true
         default: "AlisonSchofield/linux-kernel"
       kernel_branch:
         description: "Kernel branch (or tag/SHA)"
-        required: true
         default: "cxl-testme"
-
       ndctl_repo:
         description: "ndctl repo: owner/name OR full git URL"
-        required: true
         default: "pmem/ndctl"
       ndctl_branch:
         description: "ndctl branch (or tag/SHA)"
-        required: true
         default: "pending"
-
       test_suite:
-        description: "ndctl test suites: all, or space/comma separated subset of nvdimm dax cxl"
-        required: true
+        description: "Test suite: all, cxl, nvdimm, dax, 'nvdimm dax'"
         default: "all"
-
       timeout_min:
         description: "Guest timeout (minutes)"
-        required: true
+        default: "35"
+
+  workflow_call:
+    inputs:
+      kernel_repo:
+        type: string
+        default: "AlisonSchofield/linux-kernel"
+      kernel_branch:
+        type: string
+        default: "cxl-testme"
+      ndctl_repo:
+        type: string
+        default: "pmem/ndctl"
+      ndctl_branch:
+        type: string
+        default: "pending"
+      test_suite:
+        type: string
+        default: "all"
+      timeout_min:
+        type: string
         default: "35"
 
 jobs:
@@ -195,10 +207,11 @@ jobs:
         run: |
           set -euo pipefail
           case "$TEST_SUITE" in
-            all)    run_opts='--all-test-run'    ;;
-            nvdimm) run_opts='--nvdimm-test-run' ;;
-            dax)    run_opts='--dax-test-run'    ;;
-            cxl)    run_opts='--cxl-test-run'    ;;
+            all)           run_opts='--all-test-run'                    ;;
+            nvdimm)        run_opts='--nvdimm-test-run'                 ;;
+            dax)           run_opts='--dax-test-run'                    ;;
+            cxl)           run_opts='--cxl-test-run'                    ;;
+            "nvdimm dax")  run_opts='--nvdimm-test-run --dax-test-run'  ;;
             *)
               echo "Unknown test_suite: $TEST_SUITE" >&2
               exit 1
@@ -337,6 +350,32 @@ jobs:
             /tmp/rq_0.log
             kernel/bios_debug.log
             bios_debug.log
+
+      - name: job summary
+        if: always()
+        shell: bash
+        run: |
+          {
+            echo "## ndctl Test Results — ${TEST_SUITE}"
+            echo ""
+            echo "| | |"
+            echo "|---|---|"
+            echo "| **Kernel** | \`${KERNEL_REPO} @ ${KERNEL_BRANCH}\` |"
+            echo "| **ndctl**  | \`${NDCTL_REPO} @ ${NDCTL_BRANCH}\` |"
+            echo ""
+            if [[ -f /tmp/rq_0.log ]]; then
+              echo '```'
+              sed -e 's/^\[[^]]*\] //' -e 's/\r$//' /tmp/rq_0.log \
+                | awk '
+                    /^======= meson-test\.log ========/{p=1; next}
+                    /^======= (test failure logs|Done )/{p=0}
+                    p {sub(/^[^:]+\.log: ?/, ""); print}
+                  '
+              echo '```'
+            else
+              echo "> Guest did not produce a test log."
+            fi
+          } >> "$GITHUB_STEP_SUMMARY"
 
       - name: ccache stats
         run: |
