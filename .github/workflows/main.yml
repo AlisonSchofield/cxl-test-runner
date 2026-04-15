@@ -134,12 +134,6 @@ jobs:
           grep -vE '^[[:blank:]]*#' run_qemu/.github/workflows/ubuntu-ndctl-build-deps | \
           xargs sudo apt install -y
 
-      - name: apt install ndctl test dependencies
-        run: |
-          set -o pipefail
-          grep -vE '^[[:blank:]]*#' run_qemu/.github/workflows/ubuntu-ndctl-test-deps | \
-          xargs sudo apt install -y
-
       - name: argbash
         run: |
           AB_VER=2.10.0
